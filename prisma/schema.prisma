@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  username      String?   @unique
+  password      String?
+  image         String?
+  solanaWallet  String?   @unique
+  ethWallet     String?   @unique
+  telegramId    String?   @unique
+  
+  isCreator     Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  isPremium     Boolean   @default(false)
+  subscriptionTier String @default("FREE")
+  
+  balance       Float     @default(0)
+  totalEarnings Float     @default(0)
+  totalSpent    Float     @default(0)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  contents      Content[]
+  purchases     Purchase[]
+  transactions  Transaction[]
+  analytics     Analytics[]
+  notifications Notification[]
+  telegramVerifications TelegramVerification[]
+  
+  @@map("users")
+}
+
+model Content {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  type        String   // SIGNAL, ANALYSIS, BOT, COURSE
+  url         String?
+  thumbnail   String?
+  price       Float    @default(0)
+  priceUsd    Float    @default(0)
+  isPremium   Boolean  @default(false)
+  status      String   @default("ACTIVE")
+  views       Int      @default(0)
+  sales       Int      @default(0)
+  
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  purchases   Purchase[]
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  amount      Float
+  amountUsd   Float?
+  txSignature String?  @unique
+  status      String   @default("PENDING")
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  contentId   String
+  content     Content  @relation(fields: [contentId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  confirmedAt DateTime?
+}
+
+model Transaction {
+  id            String   @id @default(cuid())
+  type          String   // DEPOSIT, WITHDRAWAL, SALE, REFERRAL
+  amount        Float
+  amountUsd     Float?
+  token         String   @default("SOL")
+  txSignature   String?  @unique
+  status        String   @default("PENDING")
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  metadata      Json?
+}
+
+model Analytics {
+  id            String   @id @default(cuid())
+  date          DateTime @default(now())
+  
+  pageViews     Int      @default(0)
+  uniqueVisitors Int     @default(0)
+  newUsers      Int      @default(0)
+  activeUsers   Int      @default(0)
+  
+  revenue       Float    @default(0)
+  transactions  Int      @default(0)
+  botTriggers   Int      @default(0)
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  @@unique([date, userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  type      String   // SALE, FOLLOW, SYSTEM
+  title     String
+  message   String
+  read      Boolean  @default(false)
+  data      Json?
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  createdAt DateTime @default(now())
+}
+
+model TelegramVerification {
+  id            String   @id @default(cuid())
+  telegramId    String
+  username      String?
+  isVerified    Boolean  @default(false)
+  joinedChannels String[]
+  
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  
+  verifiedAt    DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@unique([telegramId])
+}
+
+model BotActivity {
+  id            String   @id @default(cuid())
+  botName       String
+  action        String
+  userId        String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+}
+
+model MEVDetection {
+  id            String   @id @default(cuid())
+  tokenAddress  String
+  detectionType String   // SNIPER, SANDWICH, ARBITRAGE
+  profitPotential Float
+  executed      Boolean  @default(false)
+  txSignature   String?
+  createdAt     DateTime @default(now())
+}
+
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  name          String   // FREE, ALPHA, GOD_TIER
+  priceSol      Float
+  priceUsd      Float
+  features      String[]
+  botAccess     String[]
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+}
